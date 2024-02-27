@@ -25,6 +25,11 @@ def dataread(BATCH_SIZE,args):
 
     test2 = hdf5storage.loadmat(os.path.join(apath, Ate2))  # load speaker
     Xte2, Yte2, Ite2 = test2['Xte2'], test2['Yte2'], test2['Ite2']
+    
+    GT1, GT2 = np.argmax(Yte1,axis=1), np.argmax(Yte2,axis=1)
+    # plt.hist(GTtr,bins=360)
+    # plt.show()
+    # plt.savefig('GTtr.png')
 
     # normalization
     Xte1, Xte2 = fnorm(Xte1, axis=faxis), fnorm(Xte2, axis=faxis)
@@ -83,6 +88,8 @@ def dataread(BATCH_SIZE,args):
     else:  # no training data
         train_loader = []
         Xtr, Ytr, Itr, Ztr = [], [], [], []
+    
+    GTtr = np.argmax(Ztr,axis=1) 
     print('finish data preparation')
 
 
@@ -101,5 +108,5 @@ def dataread(BATCH_SIZE,args):
         train_loader = DataLoader(dataset=train_loader_obj, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 
 
-    return train_loader,  Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2
+    return train_loader,  Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr
 
