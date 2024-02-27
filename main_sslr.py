@@ -39,14 +39,8 @@ if __name__ == '__main__':
     parser.add_argument('-teV', metavar='teV', type=str, default=None) #  
     parser.add_argument('-model', metavar='model', type=str, default='MLP3') # Options: modelMLP3attentsoftmax
     parser.add_argument('-batch', metavar='batch', type=int, default=2**8)
-    parser.add_argument('-tfmlayer', metavar='tfmlayer', type=int, default=2)
-    parser.add_argument('-retina', metavar='retina', type=int, default=0)
-    parser.add_argument('-tfmdrop', metavar='tfmdrop', type=float, default=0.5)
-    parser.add_argument('-tfmdim', metavar='tfmdim', type=int, default=512)
-    parser.add_argument('-faceFP', metavar='faceFP', type=float, default=0)  #whether add face false positive
-    parser.add_argument('-faceSWAP', metavar='faceSWAP', type=float, default=0)  #swap face detections
-    parser.add_argument('-train', metavar='eval', type=int, default=1)  # whether the evaluation mode
-    parser.add_argument('-test', metavar='eval', type=int, default=1)  # whether the evaluation mode
+    parser.add_argument('-train', metavar='train', type=int, default=1)  # whether need training set
+    # parser.add_argument('-test', metavar='eval', type=int, default=1)  # whether the evaluation mode
     parser.add_argument('-Vy', metavar='Vy', type=int, default=1)  # whether use the vertical video feature
     parser.add_argument('-VO', metavar='VO', type=int, default=0)  # train and test on frames with face
     parser.add_argument('-datapath', type=str, default='/mntcephfs/lee_dataset/loc/ICASSP2021data')  # train and test on frames with face
@@ -54,21 +48,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-# write the data into both console and file
-name="D%dP%.1fL%d"%(args.tfmdim,args.tfmdrop,args.tfmlayer)
-logname = time.strftime("%m%d:%H.%M.%S") + args.model + "_" + name
-savemodel=False
-if sys.gettrace() is None:
-    print("run in terminal, print log")
-    model_save_path = os.path.join("log","model")
-
-    # filename = "log_"+logname+"_FP%.2f"%(args.faceFP)+"SWAP%.2f"%(args.faceSWAP)+".txt"
-    # file = open(os.path.join("log",  filename), "w")
-    # sys.stdout = funcs.Unbuffered(sys.stdout, file)
-    savemodel=True
-
-
-
+# savemodel=False
 BATCH_SIZE = args.batch
 print(sys.argv[1:])
 print("experiments - xinyuan")
@@ -118,7 +98,7 @@ lossname='MSE'
 
 models, criterion = loaddata.Dataextract(modelname, lossname)
 
-train_loader, Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2 = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
+train_loader, Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
 train_loader_obj = funcs.MyDataloaderClass(Xtr, Ztr)  # Xtr-data feature, Ztr-Gaussian-format label
 train_loader = DataLoader(dataset=train_loader_obj, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 
