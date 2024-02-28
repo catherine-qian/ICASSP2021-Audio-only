@@ -10,4 +10,4 @@
 source /cm/shared/apps/anaconda3/etc/profile.d/conda.sh
 conda activate image2rev
 
-python main_sslr.py -model 'MLP3'
+python main_sslr.py -model 'MLP3' -epoch 30

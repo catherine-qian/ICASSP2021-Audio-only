@@ -30,7 +30,7 @@ print(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())))       # æ‰
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='xinyuan experiments')
     parser.add_argument('-gpuidx', metavar='gpuidx', type=int, default=0, help='gpu number')
-    parser.add_argument('-epoch', metavar='EPOCH', type=int, default=10)
+    parser.add_argument('-epoch', metavar='EPOCH', type=int, default=30)
     parser.add_argument('-drop', metavar='drop', type=float, default=0.2)
     parser.add_argument('-lr', metavar='lr', type=float, default=0.001)
     parser.add_argument('-trA', metavar='trA', type=str, default='gcc') # Options:  
@@ -46,6 +46,8 @@ if __name__ == '__main__':
     parser.add_argument('-datapath', type=str, default='/mntcephfs/lee_dataset/loc/ICASSP2021data')  # train and test on frames with face
 
 
+    parser.add_argument('-ICLnum', type=int, default=10)  # total incremetnal learning step number
+
     args = parser.parse_args()
 
 # savemodel=False
@@ -58,10 +60,20 @@ args.device = device
 print(device)
 
 
-def training(epoch):
+def training(epoch, Xtr, Ztr, Itr, GTtr, ICLi, ICLnum):
     model.train()
 
-    for batch_idx, (data, target) in enumerate(train_loader, 0):
+    GTstep=360/ICLnum
+    # ICLrange=[ICLi*GTstep,(ICLi+1)*GTstep]
+    ICLrange=[0,(ICLi+1)*GTstep]
+
+    Xtr, Ztr, Itr, GTtr, DoArange=funcs.ICLselect(Xtr, Ztr, Itr, GTtr, ICLrange, 'Train')
+    train_loader_obj = funcs.MyDataloaderClass(Xtr, Ztr, Itr, GTtr)  # Xtr-data feature, Ztr-Gaussian-format label
+    train_loader = DataLoader(dataset=train_loader_obj, batch_size=BATCH_SIZE, shuffle=True, num_workers=1,drop_last=True)
+
+    for batch_idx, (data, target, num, gtlabel) in enumerate(train_loader, 0):
+        # data: input feature
+        # target: 360-Gaussian distribution label
 
         inputs, target = Variable(data).type(torch.FloatTensor).to(device), Variable(target).type(torch.FloatTensor).to(device)
 
@@ -77,8 +89,14 @@ def training(epoch):
 
     torch.cuda.empty_cache()
 
-def testing(Xte, Yte, Ite):  # Xte: feature, Yte: binary flag
+def testing(ep, Xte, Yte, Ite, GT, ICLi, ICLnum):  # Xte: feature, Yte: binary flag
     model.eval()
+
+    GTstep=360/ICLnum
+    ICLrange=[0,(ICLi+1)*GTstep]
+
+    Xte, Yte, Ite, GT, DoArange=funcs.ICLselect(Xte, Yte, Ite, GT, ICLrange, 'Test')
+
     print('start testing')
     Y_pred_t=[]
     for ist in range(0, len(Xte), BATCH_SIZE):
@@ -89,6 +107,8 @@ def testing(Xte, Yte, Ite):  # Xte: feature, Yte: binary flag
 
     # ------------ error evaluate   ----------
     MAE1, ACC1, MAE2, ACC2,_,_,_,_ = funcs.MAEeval(Y_pred_t, Yte, Ite)
+    print(DoArange+" ep=%1d step=%1d Testing MAE1: %.1f MAE2: %.1f | ACC1: %.1f ACC2: %.1f " % (ep, ICLi, MAE1, MAE2, ACC1, ACC2))
+
     torch.cuda.empty_cache()
     return MAE1, MAE2, ACC1, ACC2
 
@@ -98,9 +118,7 @@ lossname='MSE'
 
 models, criterion = loaddata.Dataextract(modelname, lossname)
 
-train_loader, Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
-train_loader_obj = funcs.MyDataloaderClass(Xtr, Ztr)  # Xtr-data feature, Ztr-Gaussian-format label
-train_loader = DataLoader(dataset=train_loader_obj, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
+Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
 
 model = models.Model(args).to(device)
 optimizer = torch.optim.Adam(model.parameters(), args.lr)
@@ -111,14 +129,19 @@ EP = args.epoch
 MAEh1, MAEh2, ACCh1, ACCh2, MAEl1, MAEl2, ACCl1, ACCl2 = np.zeros(EP), np.zeros(EP), np.zeros(EP), np.zeros(
     EP), np.zeros(EP), np.zeros(EP), np.zeros(EP), np.zeros(EP)
 model_dict = {}
-# max_loss = 100
-plt.figure
+
+# incremental learning
 for ep in range(EP):
-    training(ep)
-    MAEl1[ep], MAEl2[ep], ACCl1[ep], ACCl2[ep] = testing(Xte2, Yte2, Ite2)  # loudspeaker
-    MAEh1[ep], MAEh2[ep], ACCh1[ep], ACCh2[ep] = testing(Xte1, Yte1, Ite1)  # human - real face detection
+    ICLi=ep//(EP//args.ICLnum)
+    print('Incremental learning  epoch '+str(ep)+'  step '+str(ICLi))
+
+    training(ep, Xtr, Ztr, Itr, GTtr, ICLi, args.ICLnum)
+
+    if ep%(EP//args.ICLnum)==2:
+        MAEl1[ep], MAEl2[ep], ACCl1[ep], ACCl2[ep] = testing(ep, Xte2, Yte2, Ite2, GT2, ICLi, args.ICLnum)  # loudspeaker
+    # MAEh1[ep], MAEh2[ep], ACCh1[ep], ACCh2[ep] = testing(ep, Xte1, Yte1, Ite1, GT1, ICLi, args.ICLnum)  # human - real face detection
     # # --------- display the result -----------
-    mae, acc, _ = funcs.display(args.model, ep, EP, MAEl1, MAEl2, ACCl1, ACCl2, MAEh1, MAEh2, ACCh1, ACCh2, Ite1, Ite2)
+    # mae, acc, _ = funcs.display(args.model, ep, EP, MAEl1, MAEl2, ACCl1, ACCl2, MAEh1, MAEh2, ACCh1, ACCh2, Ite1, Ite2)
 
 
 print("finish all!")

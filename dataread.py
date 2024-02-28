@@ -86,7 +86,6 @@ def dataread(BATCH_SIZE,args):
             Xtr[~(np.sum(Xtr[:, 306:], axis=1) > 0), 306:] = 1 / 51
 
     else:  # no training data
-        train_loader = []
         Xtr, Ytr, Itr, Ztr = [], [], [], []
     
     GTtr = np.argmax(Ztr,axis=1) 
@@ -103,10 +102,6 @@ def dataread(BATCH_SIZE,args):
         Xte1, Yte1, Ite1 = Xte1[Fte1,:], Yte1[Fte1,:], Ite1[Fte1,:]
         Xte2, Yte2, Ite2 = Xte2[Fte2,:], Yte2[Fte2,:], Ite2[Fte2,:]
 
-    if args.train:
-        train_loader_obj = funcs.MyDataloaderClass(Xtr, Ztr)  # Xtr-data feature, Ztr-Gaussian-format label
-        train_loader = DataLoader(dataset=train_loader_obj, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 
-
-    return train_loader,  Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr
+    return Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr
 

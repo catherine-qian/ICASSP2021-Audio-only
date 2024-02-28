@@ -7,6 +7,19 @@ import torch.nn as nn
 import math
 
 
+def ICLselect(X, Y, I, GT, ICLrange,set):
+    # incremental learning data select
+    # X: feature, Y: 360-Gaussian format label, I: speaker number, GT: 0-359 value, 
+    # ICLrange: select the GT range
+    lower, upper = ICLrange[0], ICLrange[1]
+    idx = (GT>=lower) & (GT<upper)
+    X, Y, I, GT = X[idx,:], Y[idx,:], I[idx,:], GT[idx]
+    print(set+': Select the DoA:'+ str(lower)+'~'+str(upper)+'  use %.02f data'%(sum(idx)/len(idx)*100))
+    DoArange='DoA:%1d~%1d use %.02f data'%(lower, upper,sum(idx)/len(idx)*100)
+    return X, Y, I, GT, DoArange
+
+
+
 
 class Unbuffered:
     def __init__(self, stream, file):
@@ -149,19 +162,21 @@ def MAEeval(Y_pred_t, Yte, Ite):
     MAE1, MAE2 = sum(erI1) / len(erI1), sum(erI2) / len(erI2)
     ACC1, ACC1mae = ACC(erI1, 5)
     ACC2, ACC2mae = ACC(erI2, 5)
-    print("Testing MAE:\t MAE1: %.8f \t MAE2: %.8f" % (MAE1, MAE2))
+    ACC1, ACC1mae, ACC2, ACC2mae = ACC1*100, ACC1mae*100, ACC2*100, ACC2mae*100
     return MAE1, ACC1, MAE2, ACC2, erI1, erI2, ACC1mae, ACC2mae
 
 
 # load the data
 class MyDataloaderClass(Dataset):
-    def __init__(self, X_data, Y_data):  # X_data is feature, Y_data is label (Gaussian or binary)
+    def __init__(self, X_data, Y_data,I_data, GT):  # X_data is feature, Y_data is label (Gaussian or binary)
         self.x_data = X_data
         self.y_data = Y_data
+        self.I_data = I_data
+        self.gt_data = GT
         self.len = X_data.shape[0]
 
     def __getitem__(self, index):
-        return self.x_data[index], self.y_data[index]
+        return self.x_data[index], self.y_data[index], self.I_data[index], self.gt_data[index]
 
     def __len__(self):
         return self.len
