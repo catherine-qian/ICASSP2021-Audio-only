@@ -44,9 +44,10 @@ if __name__ == '__main__':
     parser.add_argument('-Vy', metavar='Vy', type=int, default=1)  # whether use the vertical video feature
     parser.add_argument('-VO', metavar='VO', type=int, default=0)  # train and test on frames with face
     parser.add_argument('-datapath', type=str, default='/mntcephfs/lee_dataset/loc/ICASSP2021data')  # train and test on frames with face
+    parser.add_argument('-upbound', type=int, default=0)  # whether is the upperbound
 
 
-    parser.add_argument('-ICLnum', type=int, default=10)  # total incremetnal learning step number
+    parser.add_argument('-phaseN', type=int, default=10)  # total incremetnal learning step number
 
     args = parser.parse_args()
 
@@ -60,12 +61,11 @@ args.device = device
 print(device)
 
 
-def training(epoch, Xtr, Ztr, Itr, GTtr, ICLi, ICLnum):
+def training(epoch, Xtr, Ztr, Itr, GTtr, phase, phaseN):
     model.train()
 
-    GTstep=360/ICLnum
-    # ICLrange=[ICLi*GTstep,(ICLi+1)*GTstep]
-    ICLrange=[0,(ICLi+1)*GTstep]
+    GTstep=360/phaseN
+    ICLrange=[0,(phase+1)*GTstep] if args.upbound else [phase*GTstep,(phase+1)*GTstep]
 
     Xtr, Ztr, Itr, GTtr, DoArange=funcs.ICLselect(Xtr, Ztr, Itr, GTtr, ICLrange, 'Train')
     train_loader_obj = funcs.MyDataloaderClass(Xtr, Ztr, Itr, GTtr)  # Xtr-data feature, Ztr-Gaussian-format label
@@ -89,11 +89,11 @@ def training(epoch, Xtr, Ztr, Itr, GTtr, ICLi, ICLnum):
 
     torch.cuda.empty_cache()
 
-def testing(ep, Xte, Yte, Ite, GT, ICLi, ICLnum):  # Xte: feature, Yte: binary flag
+def testing(ep, Xte, Yte, Ite, GT, phase, phaseN):  # Xte: feature, Yte: binary flag
     model.eval()
 
-    GTstep=360/ICLnum
-    ICLrange=[0,(ICLi+1)*GTstep]
+    GTstep=360/phaseN
+    ICLrange=[0,(phase+1)*GTstep]
 
     Xte, Yte, Ite, GT, DoArange=funcs.ICLselect(Xte, Yte, Ite, GT, ICLrange, 'Test')
 
@@ -107,7 +107,7 @@ def testing(ep, Xte, Yte, Ite, GT, ICLi, ICLnum):  # Xte: feature, Yte: binary f
 
     # ------------ error evaluate   ----------
     MAE1, ACC1, MAE2, ACC2,_,_,_,_ = funcs.MAEeval(Y_pred_t, Yte, Ite)
-    print(DoArange+" ep=%1d step=%1d Testing MAE1: %.1f MAE2: %.1f | ACC1: %.1f ACC2: %.1f " % (ep, ICLi, MAE1, MAE2, ACC1, ACC2))
+    print(DoArange+" ep=%1d phase=%1d Testing MAE1: %.1f MAE2: %.1f | ACC1: %.1f ACC2: %.1f " % (ep, phase, MAE1, MAE2, ACC1, ACC2))
 
     torch.cuda.empty_cache()
     return MAE1, MAE2, ACC1, ACC2
@@ -119,6 +119,7 @@ lossname='MSE'
 models, criterion = loaddata.Dataextract(modelname, lossname)
 
 Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
+# h,b,p=plt.hist(GTtr,bins=360)
 
 model = models.Model(args).to(device)
 optimizer = torch.optim.Adam(model.parameters(), args.lr)
@@ -126,23 +127,28 @@ print(model)
 
 ######## Training + Testing #######
 EP = args.epoch
-MAEh1, MAEh2, ACCh1, ACCh2, MAEl1, MAEl2, ACCl1, ACCl2 = np.zeros(EP), np.zeros(EP), np.zeros(EP), np.zeros(
-    EP), np.zeros(EP), np.zeros(EP), np.zeros(EP), np.zeros(EP)
+MAEl1, MAEl2, ACCl1, ACCl2 = np.zeros(args.phaseN), np.zeros(args.phaseN), np.zeros(args.phaseN), np.zeros(args.phaseN)
 model_dict = {}
 
 # incremental learning
+forget_rate1 = np.zeros(args.phaseN)
+forget_rate2 = np.zeros(args.phaseN)
+
 for ep in range(EP):
-    ICLi=ep//(EP//args.ICLnum)
-    print('Incremental learning  epoch '+str(ep)+'  step '+str(ICLi))
+    phase=ep//(EP//args.phaseN)
+    print('Incremental learning  epoch '+str(ep)+'  phase '+str(phase))
 
-    training(ep, Xtr, Ztr, Itr, GTtr, ICLi, args.ICLnum)
+    training(ep, Xtr, Ztr, Itr, GTtr, phase, args.phaseN)
 
-    if ep%(EP//args.ICLnum)==2:
-        MAEl1[ep], MAEl2[ep], ACCl1[ep], ACCl2[ep] = testing(ep, Xte2, Yte2, Ite2, GT2, ICLi, args.ICLnum)  # loudspeaker
-    # MAEh1[ep], MAEh2[ep], ACCh1[ep], ACCh2[ep] = testing(ep, Xte1, Yte1, Ite1, GT1, ICLi, args.ICLnum)  # human - real face detection
+    if ep%(EP//args.phaseN)==args.epoch/args.phaseN-1:
+        MAEl1[phase], MAEl2[phase], ACCl1[phase], ACCl2[phase] = testing(ep, Xte2, Yte2, Ite2, GT2, phase, args.phaseN)  # loudspeaker
+        forget_rate1[phase] = ACCl1[0]-ACCl1[phase]
+        forget_rate2[phase] = ACCl2[0]-ACCl2[phase]
+    # MAEh1[ep], MAEh2[ep], ACCh1[ep], ACCh2[ep] = testing(ep, Xte1, Yte1, Ite1, GT1, phase, args.phaseN)  # human - real face detection
     # # --------- display the result -----------
     # mae, acc, _ = funcs.display(args.model, ep, EP, MAEl1, MAEl2, ACCl1, ACCl2, MAEh1, MAEh2, ACCh1, ACCh2, Ite1, Ite2)
+    
+        print("Forgeting rate for Phase %01d/%01d: ACC1 %.2f ACC2 %.2f" % (phase, args.phaseN, forget_rate1[phase], forget_rate2[phase]))
 
-
-print("finish all!")
+print("finish all! average testing MAE1: %.1f MAE2: %.1f | ACC1: %.1f ACC2: %.1f " % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2)))
 
