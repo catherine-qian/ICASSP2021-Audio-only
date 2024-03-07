@@ -54,6 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('-full_classes', type=int, default=360)  # whether is the upperbound
     parser.add_argument('-baseclass', type=int, default=0)  # whether is the upperbound
     parser.add_argument('-pretrained', type=str, default=None)  # load pretrained base model
+    parser.add_argument('-incremental', type=int, default=1)   
     parser.add_argument('-rg', default=1e-1, type=float, help='')
     args = parser.parse_args()
 
@@ -132,8 +133,6 @@ if args.pretrained:
      model.load_state_dict(torch.load(args.pretrain, map_location=device))
      print('Load pretrained base model '+args.pretrained)
 
-
-
 ######## Training + Testing #######
 EP = args.epoch
 MAEl1, MAEl2, ACCl1, ACCl2 = np.zeros(args.phaseN), np.zeros(args.phaseN), np.zeros(args.phaseN), np.zeros(args.phaseN)
@@ -146,17 +145,17 @@ model_dict = {}
 print('Training for base classes...')
 
 train_loader = ILdata_select(Xtr, Ztr, Itr, GTtr, 0, args)
-# if args.incremental:
-bias_fe = False
-args.num_classes = args.full_classes
-model.fc = nn.Sequential(nn.Linear(model.fc.weight.size(1), args.Hidden, bias=bias_fe), # args.Hidden=5000, 对应文章中expansion到最后的classifier
-                            nn.ReLU(),
-                            nn.Linear(args.Hidden, args.num_classes, bias=False)).to(device)
-if args.recurbase:
-    R = ((1 * torch.eye(args.Hidden)).float()).to(device)
-    R = IL_align(train_loader, model, args, R, 1)
-else:
-    R = cls_align(train_loader, model, args)
+if args.incremental:
+    bias_fe = False
+    args.num_classes = args.full_classes
+    model.fc = nn.Sequential(nn.Linear(model.fc.weight.size(1), args.Hidden, bias=bias_fe), # args.Hidden=5000, 对应文章中expansion到最后的classifier
+                                nn.ReLU(),
+                                nn.Linear(args.Hidden, args.num_classes, bias=False)).to(device)
+    if args.recurbase:
+        R = ((1 * torch.eye(args.Hidden)).float()).to(device)
+        R = IL_align(train_loader, model, args, R, 1)
+    else:
+        R = cls_align(train_loader, model, args)
 
 phase=0
 MAEl1[phase], MAEl2[phase], ACCl1[phase], ACCl2[phase], Nl1, Nl2, DoArange = testing(-1, Xte2, Yte2, Ite2, GT2, phase, args.phaseN) 
@@ -176,21 +175,24 @@ print('Training for incremental classes with {} phase(s) in total...'.format(arg
 ep=-1 # no need to train
 frate1, frate2,frateh1, frateh2 = np.zeros(args.phaseN), np.zeros(args.phaseN),np.zeros(args.phaseN), np.zeros(args.phaseN)
 for phase in range(args.phaseN):
+    if args.incremental:
+        # args.num_classes = args.baseclass+nc_each*(phase+1)
 
-    # args.num_classes = args.baseclass+nc_each*(phase+1)
-
-    # matrix update
-    W = model.fc[-1].weight
-    # W = torch.cat([W, torch.zeros(nc_each, args.Hidden).to(args.device)], dim=0) # [50, 5000])
-    model.fc[-1] = nn.Linear(args.Hidden, args.num_classes, bias=False) # [306, 5000])
-    model.fc[-1].weight = torch.nn.parameter.Parameter(W.float()) # initialize
+        # matrix update
+        W = model.fc[-1].weight
+        # W = torch.cat([W, torch.zeros(nc_each, args.Hidden).to(args.device)], dim=0) # [50, 5000])
+        model.fc[-1] = nn.Linear(args.Hidden, args.num_classes, bias=False) # [306, 5000])
+        model.fc[-1].weight = torch.nn.parameter.Parameter(W.float()) # initialize
 
 
-    train_loader_phase = ILdata_select(Xtr, Ztr, Itr, GTtr, phase, args)
-    R = IL_align(train_loader_phase, model, args, R, repeat=1)
-    print('Incremental Learning for Phase {}/{}'.format(phase + 1, args.phaseN))
+        train_loader_phase = ILdata_select(Xtr, Ztr, Itr, GTtr, phase, args)
+        R = IL_align(train_loader_phase, model, args, R, repeat=1)
+        print('Incremental Learning for Phase {}/{}'.format(phase + 1, args.phaseN))
 
-    # testing
+    else:
+        training(ep, Xtr, Ztr, Itr, GTtr, phase, args.phaseN)
+
+            # testing
     MAEl1[phase], MAEl2[phase], ACCl1[phase], ACCl2[phase], Nl1, Nl2, DoArange = testing(ep, Xte2, Yte2, Ite2, GT2, phase, args.phaseN) # loud speaker
     MAEh1[phase], MAEh2[phase], ACCh1[phase], ACCh2[phase], Nh1, Nh2, DoArange = testing(ep, Xte1, Yte1, Ite1, GT1, phase, args.phaseN) # human set
 
@@ -201,11 +203,13 @@ for phase in range(args.phaseN):
     MAEavg[phase] = Nl1/N*MAEl1[phase]+Nl2/N*MAEl2[phase]+Nh1/N*MAEh1[phase]+Nh2/N*MAEh2[phase]
     ACCavg[phase] = Nl1/N*ACCl1[phase]+Nl2/N*ACCl2[phase]+Nh1/N*ACCh1[phase]+Nh2/N*ACCh2[phase]
     print(DoArange+"phase %01d/%01d: MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f | Avg.MAE, ACC %.1f %.1f" %
-       (0, args.phaseN, MAEl1[phase], MAEl2[phase], ACCl1[phase], ACCl2[phase],MAEh1[phase], MAEh2[phase], ACCh1[phase], ACCh2[phase], MAEavg[phase], ACCavg[phase]))
+    (phase, args.phaseN, MAEl1[phase], MAEl2[phase], ACCl1[phase], ACCl2[phase],MAEh1[phase], MAEh2[phase], ACCh1[phase], ACCh2[phase], MAEavg[phase], ACCavg[phase]))
 
     print("Forgeting rate for Phase %01d/%01d: ACC1 %.2f ACC2 %.2f | ACCh1 %.2f ACCh2 %.2f" % (phase, args.phaseN, frate1[phase], frate2[phase],frateh1[phase], frateh2[phase]))
 
-print("finish all! average test MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f" % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2),np.mean(MAEh1), np.mean(MAEh2), np.mean(ACCh1), np.mean(ACCh2)))
+
+
+print("finish all! average test MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f | Avg.MAE %.2f ACC%.2f" % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2),np.mean(MAEh1), np.mean(MAEh2), np.mean(ACCh1), np.mean(ACCh2), np.mean(MAEavg), np.mean(ACCavg)))
 
     # val_loader = get_IL_dataset(val_loader, IL_dataset_val[phase], False)
     # acc1 = validate(val_loader, model, criterion, args, print=False)

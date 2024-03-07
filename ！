@@ -10,7 +10,5 @@
 source /cm/shared/apps/anaconda3/etc/profile.d/conda.sh
 conda activate image2rev
 
-inc=0
-upbound=1
-python main_ICL.py -upbound $upbound -incremental $inc -model 'MLP3' -epoch 30 -phaseN 10
+python main_ICL.py -model 'MLP3' -epoch 30 -phaseN 10
 
