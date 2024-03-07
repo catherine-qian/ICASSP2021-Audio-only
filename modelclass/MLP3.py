@@ -25,14 +25,15 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Dropout(p=args.drop),
 
-            nn.Linear(1000, 360),
-
-            nn.Sigmoid()
-
         )
+        
+        self.fc = nn.Linear(1000, 360)
+        self.sig = nn.Sigmoid()
 
     def forward(self, x):
-        y_pred = self.MLP3(x[:,:306]) # only the audio parts
+        y_hidden = self.MLP3(x[:,:306]) # only the audio parts
+        y_hidden = self.fc(y_hidden)
+        y_pred = self.sig(y_hidden)
 
         return y_pred
 

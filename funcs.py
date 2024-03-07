@@ -15,7 +15,7 @@ def ICLselect(X, Y, I, GT, ICLrange,set):
     idx = (GT>=lower) & (GT<upper)
     X, Y, I, GT = X[idx,:], Y[idx,:], I[idx,:], GT[idx]
     print(set+': Select the DoA:'+ str(lower)+'~'+str(upper)+'  use %.02f data'%(sum(idx)/len(idx)*100))
-    DoArange='DoA:%1d~%1d use %.02f data'%(lower, upper,sum(idx)/len(idx)*100)
+    DoArange='DoA:%1d~%1d (%.0f%%）'%(lower, upper,sum(idx)/len(idx)*100)
     return X, Y, I, GT, DoArange
 
 
@@ -163,7 +163,9 @@ def MAEeval(Y_pred_t, Yte, Ite):
     ACC1, ACC1mae = ACC(erI1, 5)
     ACC2, ACC2mae = ACC(erI2, 5)
     ACC1, ACC1mae, ACC2, ACC2mae = ACC1*100, ACC1mae*100, ACC2*100, ACC2mae*100
-    return MAE1, ACC1, MAE2, ACC2, erI1, erI2, ACC1mae, ACC2mae
+
+    N1, N2=np.sum(Ite==1), np.sum(Ite==2) # frame number of speaker 1,2
+    return MAE1, ACC1, MAE2, ACC2, erI1, erI2, ACC1mae, ACC2mae,N1, N2
 
 
 # load the data

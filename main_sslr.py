@@ -18,6 +18,8 @@ import funcs
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
 # import allnoise
+import torch.nn as nn
+
 
 sys.path.append('modelclass')
 sys.path.append('funcs')
@@ -45,9 +47,11 @@ if __name__ == '__main__':
     parser.add_argument('-VO', metavar='VO', type=int, default=0)  # train and test on frames with face
     parser.add_argument('-datapath', type=str, default='/mntcephfs/lee_dataset/loc/ICASSP2021data')  # train and test on frames with face
     parser.add_argument('-upbound', type=int, default=0)  # whether is the upperbound
-
-
+    parser.add_argument('-Hidden', default=5000, type=int,help='')
     parser.add_argument('-phaseN', type=int, default=10)  # total incremetnal learning step number
+    parser.add_argument('-incremental', type=int, default=0)  # whether is the upperbound
+    parser.add_argument('-recurbase', type=int, default=0)  # whether is the upperbound
+
 
     args = parser.parse_args()
 
@@ -61,8 +65,9 @@ args.device = device
 print(device)
 
 
-def training(epoch, Xtr, Ztr, Itr, GTtr, phase, phaseN):
+def training(epoch, Xtr, Ztr, Itr, GTtr, phase, args):
     model.train()
+    phaseN= args.phaseN
 
     GTstep=360/phaseN
     ICLrange=[0,(phase+1)*GTstep] if args.upbound else [phase*GTstep,(phase+1)*GTstep]
@@ -113,17 +118,16 @@ def testing(ep, Xte, Yte, Ite, GT, phase, phaseN):  # Xte: feature, Yte: binary 
     return MAE1, MAE2, ACC1, ACC2
 
 # ############################# load the data and the model ##############################################################
+Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
 modelname = args.model  
 lossname='MSE'
 
 models, criterion = loaddata.Dataextract(modelname, lossname)
-
-Xtr, Ytr, Itr, Ztr, Xte1, Yte1, Ite1, Xte2, Yte2, Ite2, GT1, GT2, GTtr = dataread.dataread(BATCH_SIZE, args) # <--- logger to be added
-# h,b,p=plt.hist(GTtr,bins=360)
-
 model = models.Model(args).to(device)
 optimizer = torch.optim.Adam(model.parameters(), args.lr)
 print(model)
+# h,b,p=plt.hist(GTtr,bins=360)
+
 
 ######## Training + Testing #######
 EP = args.epoch
@@ -134,11 +138,12 @@ model_dict = {}
 forget_rate1 = np.zeros(args.phaseN)
 forget_rate2 = np.zeros(args.phaseN)
 
+
 for ep in range(EP):
     phase=ep//(EP//args.phaseN)
     print('Incremental learning  epoch '+str(ep)+'  phase '+str(phase))
 
-    training(ep, Xtr, Ztr, Itr, GTtr, phase, args.phaseN)
+    training(ep, Xtr, Ztr, Itr, GTtr, phase, args)
 
     if ep%(EP//args.phaseN)==args.epoch/args.phaseN-1:
         MAEl1[phase], MAEl2[phase], ACCl1[phase], ACCl2[phase] = testing(ep, Xte2, Yte2, Ite2, GT2, phase, args.phaseN)  # loudspeaker
