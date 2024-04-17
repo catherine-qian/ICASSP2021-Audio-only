@@ -10,7 +10,9 @@
 source /cm/shared/apps/anaconda3/etc/profile.d/conda.sh
 conda activate image2rev
 
-inc=0
-upbound=1
-python main_ICL.py -upbound $upbound -incremental $inc -model 'MLP3' -epoch 30 -phaseN 10
+inc=1
+upbound=0
+teA='gccsnr-10' #gcc
+trA='gccsnrall'
+python main_ICL.py -trA $trA -teA $teA -upbound $upbound -incremental $inc -model 'MLP3' -epoch 30 -phaseN 10
 

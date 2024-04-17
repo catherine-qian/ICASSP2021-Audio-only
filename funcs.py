@@ -16,6 +16,7 @@ def ICLselect(X, Y, I, GT, ICLrange,set):
     X, Y, I, GT = X[idx,:], Y[idx,:], I[idx,:], GT[idx]
     print(set+': Select the DoA:'+ str(lower)+'~'+str(upper)+'  use %.02f data'%(sum(idx)/len(idx)*100))
     DoArange='DoA:%1d~%1d (%.0f%%）'%(lower, upper,sum(idx)/len(idx)*100)
+
     return X, Y, I, GT, DoArange
 
 

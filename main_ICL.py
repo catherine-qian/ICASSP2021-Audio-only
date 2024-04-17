@@ -143,11 +143,13 @@ model_dict = {}
 
 # incremental learning
 print('Training for base classes...')
+args.baseclass=360//args.phaseN
+args.num_classes = args.baseclass
 
 train_loader = ILdata_select(Xtr, Ztr, Itr, GTtr, 0, args)
 if args.incremental:
     bias_fe = False
-    args.num_classes = args.full_classes
+    args.num_classes = args.baseclass
     model.fc = nn.Sequential(nn.Linear(model.fc.weight.size(1), args.Hidden, bias=bias_fe), # args.Hidden=5000, 对应文章中expansion到最后的classifier
                                 nn.ReLU(),
                                 nn.Linear(args.Hidden, args.num_classes, bias=False)).to(device)
@@ -165,22 +167,22 @@ N=Nl1+Nl2+Nh1+Nh2
 MAEavg[phase] = Nl1/N*MAEl1[phase]+Nl2/N*MAEl2[phase]+Nh1/N*MAEh1[phase]+Nh2/N*MAEh2[phase]
 ACCavg[phase] = Nl1/N*ACCl1[phase]+Nl2/N*ACCl2[phase]+Nh1/N*ACCh1[phase]+Nh2/N*ACCh2[phase]
 print("Base phase %01d/%01d: MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f | Avg.MAE, ACC %.1f %.1f" %
-       (0, args.phaseN, MAEl1[0], MAEl2[0], ACCl1[0], ACCl2[0],MAEh1[0], MAEh2[0], ACCh1[0], ACCh2[0], MAEavg[0], ACCavg[0]))
+    (0, args.phaseN, MAEl1[0], MAEl2[0], ACCl1[0], ACCl2[0],MAEh1[0], MAEh2[0], ACCh1[0], ACCh2[0], MAEavg[0], ACCavg[0]))
 
 
 # CIL for phases
 print('Training for incremental classes with {} phase(s) in total...'.format(args.phaseN))
 
-# nc_each = 360//args.phaseN
+nc_each = 360//args.phaseN
 ep=-1 # no need to train
 frate1, frate2,frateh1, frateh2 = np.zeros(args.phaseN), np.zeros(args.phaseN),np.zeros(args.phaseN), np.zeros(args.phaseN)
 for phase in range(args.phaseN):
     if args.incremental:
-        # args.num_classes = args.baseclass+nc_each*(phase+1)
+        args.num_classes = args.baseclass+nc_each*phase
 
         # matrix update
         W = model.fc[-1].weight
-        # W = torch.cat([W, torch.zeros(nc_each, args.Hidden).to(args.device)], dim=0) # [50, 5000])
+        W = torch.cat([W, torch.zeros(args.num_classes-W.shape[0], args.Hidden).to(args.device)], dim=0) # [50, 5000])
         model.fc[-1] = nn.Linear(args.Hidden, args.num_classes, bias=False) # [306, 5000])
         model.fc[-1].weight = torch.nn.parameter.Parameter(W.float()) # initialize
 

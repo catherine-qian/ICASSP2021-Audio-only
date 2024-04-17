@@ -81,7 +81,11 @@ def audioname(args):
         fnorm, faxis = minmax_scale, 1
     elif "gccsnr" in args.teA:
         snr = args.teA[6:]  # snr in dB
-        te1, te2 = "qianTesting1_GCCPHAT_SSLR_SNR" + snr + "dB.mat", "qianTesting2_GCCPHAT_SSLR_SNR" + snr + "dB.mat" 
+        te1 = "qianTesting1_GCCPHAT_SSLR_SNR" + snr + "dB.mat" 
+        te2 = "qianTesting2_GCCPHAT_SSLR_SNR" + snr + "dB.mat" 
         fnorm, faxis = minmax_scale, 1
+    
+    print('train audio:' + tr)
+    print('testing audio: '+te1+' '+te2)
 
     return tr, te1, te2, apath, fnorm, faxis

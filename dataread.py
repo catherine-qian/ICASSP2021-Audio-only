@@ -26,7 +26,12 @@ def dataread(BATCH_SIZE,args):
     test2 = hdf5storage.loadmat(os.path.join(apath, Ate2))  # load speaker
     Xte2, Yte2, Ite2 = test2['Xte2'], test2['Yte2'], test2['Ite2']
     
-    GT1, GT2 = np.argmax(Yte1,axis=1), np.argmax(Yte2,axis=1)
+    # GT1, GT2 = np.argmax(Yte1,axis=1), np.argmax(Yte2,axis=1)
+    mirrored_Y1= np.fliplr(Yte1)
+    GT1=359-np.argmax(mirrored_Y1,axis=1)  # 返回最大label的说话人
+    mirrored_Y2= np.fliplr(Yte2)
+    GT2=359-np.argmax(mirrored_Y2,axis=1)  # 返回最大label的说话人
+
     # plt.hist(GTtr,bins=360)
     # plt.show()
     # plt.savefig('GTtr.png')
@@ -59,6 +64,7 @@ def dataread(BATCH_SIZE,args):
         # audio file
 
         if args.trA == 'gccsnrall': # load all SNR files
+            print('train audio: use all snr data!')
             train = hdf5storage.loadmat(os.path.join(apath, 'qianTraining_GCCPHAT_SSLR_SNR-20dB.mat'))
             Xtr, Ytr, Itr, Ztr = train['Xtr'], train['Ytr'], train['Itr'], train['Ztr']
             for snr in [-10,0,10,20]:
@@ -88,7 +94,10 @@ def dataread(BATCH_SIZE,args):
     else:  # no training data
         Xtr, Ytr, Itr, Ztr = [], [], [], []
     
-    GTtr = np.argmax(Ztr,axis=1) 
+    # GTtr = np.argmax(Ztr,axis=1) 
+
+    mirrored_Z= np.fliplr(Ztr)
+    GTtr=359-np.argmax(mirrored_Z,axis=1)  # 返回最大label的说话人
     print('finish data preparation')
 
 
