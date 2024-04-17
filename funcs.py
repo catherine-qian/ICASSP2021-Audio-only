@@ -168,8 +168,9 @@ def MAEeval(Y_pred_t, Yte, Ite):
         ACC2, ACC2mae = ACC(erI2, 5) 
     else:
         ACC2, ACC2mae = 0, 0
+        print('no testing data in range')
+
     ACC1, ACC1mae, ACC2, ACC2mae = ACC1*100, ACC1mae*100, ACC2*100, ACC2mae*100
-    print()
 
     return MAE1, ACC1, MAE2, ACC2, erI1, erI2, ACC1mae, ACC2mae,N1, N2
 

@@ -12,7 +12,8 @@ def cls_align(train_loader, model, args):
     model.eval()
 
     auto_cor = torch.zeros(model.fc[-1].weight.size(1), model.fc[-1].weight.size(1)).to(args.device)
-    crs_cor = torch.zeros(model.fc[-1].weight.size(1), args.num_classes).to(args.device)
+    # crs_cor = torch.zeros(model.fc[-1].weight.size(1), args.num_classes).to(args.device)
+    crs_cor = torch.zeros(model.fc[-1].weight.size(1), 360).to(args.device)
 
     with torch.no_grad():
         for epoch in range(1):
@@ -75,7 +76,7 @@ def ILdata_select(Xtr, Ztr, Itr, GTtr, phase, args):
     ICLrange=[0,(phase+1)*GTstep] if args.upbound else [phase*GTstep,(phase+1)*GTstep]
 
     Xtr, Ztr, Itr, GTtr, DoArange=funcs.ICLselect(Xtr, Ztr, Itr, GTtr, ICLrange, 'Train')
-    Ztr = Ztr[:,:args.num_classes]
+    # Ztr = Ztr[:,:args.num_classes]
     train_loader_obj = funcs.MyDataloaderClass(Xtr, Ztr, Itr, GTtr)  # Xtr-data feature, Ztr-Gaussian-format label
     train_loader = DataLoader(dataset=train_loader_obj, batch_size=args.batch, shuffle=True, num_workers=1,drop_last=True)
     print('phase'+str(phase)+' select '+str(ICLrange[0])+'~'+str(ICLrange[1])+' DoA'+str(Ztr.shape[1]))

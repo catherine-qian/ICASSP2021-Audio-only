@@ -152,7 +152,9 @@ if args.incremental:
     args.num_classes = args.baseclass
     model.fc = nn.Sequential(nn.Linear(model.fc.weight.size(1), args.Hidden, bias=bias_fe), # args.Hidden=5000, 对应文章中expansion到最后的classifier
                                 nn.ReLU(),
-                                nn.Linear(args.Hidden, args.num_classes, bias=False)).to(device)
+                                # nn.Linear(args.Hidden, args.num_classes, bias=False)).to(device) # 逐步增加last layer
+                                nn.Linear(args.Hidden, 360, bias=False)).to(device)
+
     if args.recurbase:
         R = ((1 * torch.eye(args.Hidden)).float()).to(device)
         R = IL_align(train_loader, model, args, R, 1)
@@ -182,8 +184,10 @@ for phase in range(args.phaseN):
 
         # matrix update
         W = model.fc[-1].weight
-        W = torch.cat([W, torch.zeros(args.num_classes-W.shape[0], args.Hidden).to(args.device)], dim=0) # [50, 5000])
-        model.fc[-1] = nn.Linear(args.Hidden, args.num_classes, bias=False) # [306, 5000])
+        # W = torch.cat([W, torch.zeros(args.num_classes-W.shape[0], args.Hidden).to(args.device)], dim=0)  # 逐步增加last layer
+        # model.fc[-1] = nn.Linear(args.Hidden, args.num_classes, bias=False) # 逐步增加last layer
+        model.fc[-1] = nn.Linear(args.Hidden, 360, bias=False) # 
+
         model.fc[-1].weight = torch.nn.parameter.Parameter(W.float()) # initialize
 
 
@@ -211,7 +215,7 @@ for phase in range(args.phaseN):
 
 
 
-print("finish all! average test MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f | Avg.MAE %.2f ACC%.2f" % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2),np.mean(MAEh1), np.mean(MAEh2), np.mean(ACCh1), np.mean(ACCh2), np.mean(MAEavg), np.mean(ACCavg)))
+print("finish all! average test MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f | Avg.MAE %.2f ACC%.2f" % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2),np.mean(MAEh1[MAEh1>0]), np.mean(MAEh2[MAEh2>0]), np.mean(ACCh1[ACCh1>0]), np.mean(ACCh2[ACCh2>0]), np.mean(MAEavg), np.mean(ACCavg)))
 
     # val_loader = get_IL_dataset(val_loader, IL_dataset_val[phase], False)
     # acc1 = validate(val_loader, model, criterion, args, print=False)
