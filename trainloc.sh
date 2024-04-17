@@ -12,7 +12,7 @@ conda activate image2rev
 
 inc=1
 upbound=0
-teA='gccsnr-10' #gcc
-trA='gccsnrall'
+teA='gcc' #'gccsnr-10' #gcc
+trA='gcc' #'gccsnrall'
 python main_ICL.py -trA $trA -teA $teA -upbound $upbound -incremental $inc -model 'MLP3' -epoch 30 -phaseN 10
 

@@ -147,7 +147,7 @@ def MAEeval(Y_pred_t, Yte, Ite):
             gt = np.where(y_1 == 1)[0]  # ground truth
             pred = np.argmax(hyp)  # predict, dominant speaker
             hyp2 = np.roll(hyp, 180 - pred)
-            hyp2[180 - 15:180 + 15] = 0  # don't consider 25 degs
+            hyp2[180 - 15:180 + 15] = 0  # don't consider 30 degs
             pred = np.append(pred, np.argmax(np.roll(hyp2, pred - 180)))
 
             error = angular_distance_compute(gt.reshape(2, 1), pred)
@@ -160,12 +160,17 @@ def MAEeval(Y_pred_t, Yte, Ite):
 
         DoA.append(pred)
 
-    MAE1, MAE2 = sum(erI1) / len(erI1), sum(erI2) / len(erI2)
-    ACC1, ACC1mae = ACC(erI1, 5)
-    ACC2, ACC2mae = ACC(erI2, 5)
-    ACC1, ACC1mae, ACC2, ACC2mae = ACC1*100, ACC1mae*100, ACC2*100, ACC2mae*100
-
     N1, N2=np.sum(Ite==1), np.sum(Ite==2) # frame number of speaker 1,2
+    MAE1 = sum(erI1) / len(erI1)
+    MAE2 = sum(erI2) / len(erI2) if N2 >0 else 0
+    ACC1, ACC1mae = ACC(erI1, 5)
+    if N2 >0:
+        ACC2, ACC2mae = ACC(erI2, 5) 
+    else:
+        ACC2, ACC2mae = 0, 0
+    ACC1, ACC1mae, ACC2, ACC2mae = ACC1*100, ACC1mae*100, ACC2*100, ACC2mae*100
+    print()
+
     return MAE1, ACC1, MAE2, ACC2, erI1, erI2, ACC1mae, ACC2mae,N1, N2
 
 
