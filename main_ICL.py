@@ -215,7 +215,8 @@ for phase in range(args.phaseN):
 
 
 
-print("finish all! average test MAE1-2:%.1f %.1f, ACC1-2:%.1f %.1f| MAEh1-2:%.1f %.1f, ACCh1-2:%.1f %.1f | Avg.MAE %.2f ACC%.2f" % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2),np.mean(MAEh1[MAEh1>0]), np.mean(MAEh2[MAEh2>0]), np.mean(ACCh1[ACCh1>0]), np.mean(ACCh2[ACCh2>0]), np.mean(MAEavg), np.mean(ACCavg)))
+print("finish all! average test MAE1-2:%.2f %.2f, ACC1-2:%.2f %.2f| MAEh1-2:%.2f %.2f, ACCh1-2:%.2f %.2f | Avg.MAE %.2f ACC%.2f" % (np.mean(MAEl1), np.mean(MAEl2), np.mean(ACCl1), np.mean(ACCl2),np.mean(MAEh1[MAEh1>0]), np.mean(MAEh2[MAEh2>0]), np.mean(ACCh1[ACCh1>0]), np.mean(ACCh2[ACCh2>0]), np.mean(MAEavg), np.mean(ACCavg)))
+print("finish all! paper rst: loadspeaker: %.2f %.2f, %.2f %.2f | human: %.2f %.2f, %.2f %.2f | Avg. %.2f, %.2f" % (np.mean(MAEl1),np.mean(ACCl1),  np.mean(MAEl2), np.mean(ACCl2), np.mean(MAEh1[MAEh1>0]), np.mean(ACCh1[ACCh1>0]), np.mean(MAEh2[MAEh2>0]), np.mean(ACCh2[ACCh2>0]), np.mean(MAEavg), np.mean(ACCavg)))
 
     # val_loader = get_IL_dataset(val_loader, IL_dataset_val[phase], False)
     # acc1 = validate(val_loader, model, criterion, args, print=False)
