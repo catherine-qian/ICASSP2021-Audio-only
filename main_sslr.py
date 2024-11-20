@@ -16,7 +16,7 @@ from sklearn.preprocessing import minmax_scale
 from sklearn.preprocessing import scale as zscale # Z-score normalizatin: mean-0, std-1
 import funcs
 from torch.optim.lr_scheduler import StepLR
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 # import allnoise
 
 sys.path.append('modelclass')
@@ -58,16 +58,23 @@ args.device = device
 print(device)
 
 
+
+
 def training(epoch):
     model.train()
 
     for batch_idx, (data, target) in enumerate(train_loader, 0):
 
-        inputs, target = Variable(data).type(torch.FloatTensor).to(device), Variable(target).type(torch.FloatTensor).to(device)
-
+        inputs, target = Variable(data).type(torch.FloatTensor).to(device), Variable(target).type(torch.FloatTensor).to(device) # inputs [bs, 306], target [bs, 360]
+        
+        inputs=funcs.rm_modality(inputs, ratio=0.5, prt=True)
+        
         # start training
-        y_pred = model.forward(inputs)  # return the predicted angle
-        loss = criterion(y_pred.double(), target.double())
+        y_pred, fpred = model.forward(inputs)  # return the predicted angle
+        loss1 = criterion(y_pred.double(), target.double())
+        loss2 = 4*criterion(fpred.double(), inputs.double())
+        loss = loss1 + loss2
+        print("loss DoA {:.4f}".format(loss1)+"    loss feat {:.4f}".format(loss2))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -77,14 +84,19 @@ def training(epoch):
 
     torch.cuda.empty_cache()
 
+
 def testing(Xte, Yte, Ite):  # Xte: feature, Yte: binary flag
     model.eval()
     print('start testing')
     Y_pred_t=[]
     for ist in range(0, len(Xte), BATCH_SIZE):
         ied = np.min([ist+BATCH_SIZE, len(Xte)])
-        inputs = Variable(torch.from_numpy(Xte[ist:ied])).type(torch.FloatTensor).to(device)
-        output = model.forward(inputs)
+        inputs = torch.from_numpy(Xte[ist:ied])  # [bs, 306]
+        inputs=funcs.rm_modality(inputs, ratio=0.5, prt=ist==0)
+
+        inputs=Variable(inputs).type(torch.FloatTensor).to(device)
+
+        output,_ = model.forward(inputs)
         Y_pred_t.extend(output.cpu().detach().numpy()) # in CPU
 
     # ------------ error evaluate   ----------

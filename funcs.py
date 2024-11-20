@@ -5,6 +5,23 @@ import sys
 import logging
 import torch.nn as nn
 import math
+import random
+
+def rm_modality(inputs, ratio=0.2, prt=True): # remove modality
+    # inputs   [bs, 306]
+    bs, L = inputs.shape
+
+    inputs_rs= inputs.reshape(-1,51)
+
+    N, _= inputs_rs.shape
+    idx_rm= [random.randint(1, N-1) for _ in range(round(ratio*N))] # randomly remove index
+    inputs_rs[idx_rm,:]=0
+    inputs_rm=inputs_rs.reshape(bs,-1)
+    if prt:
+        print('remove '+str(ratio)+' gccphat feature')
+        # print(inputs_rm.shape)
+
+    return inputs_rm
 
 
 
